@@ -1,0 +1,164 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require("../app");
+var debug = require("debug")("socketchatexpress:server");
+var http = require("http");
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || "3000");
+app.set("port", port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Create Socket IO
+ */
+
+var io = require("socket.io")(server);
+
+var online_users = [];
+var offline_users = [];
+var users_typing = [];
+
+users_typing.forEach;
+
+function addToOnline(username) {
+  if (online_users.indexOf(username) == -1) {
+    online_users.push(username);
+  }
+}
+
+// function addToOffline(username) {
+//   var index = online_users.indexOf(username);
+//   if (index != -1) {
+//     online_users.splice(index, 1);
+//   }
+
+//   if (offline_users.indexOf(username) == -1) {
+//     offline_users.push(username);
+//   }
+// }
+
+io.on("connection", function(socket) {
+  socket.on("username", function(username) {
+    socket.username = username;
+    io.emit(
+      "is_online",
+      "🟢 <i><strong>" + socket.username + "</strong> joined the chat...</i>"
+    );
+    addToOnline(username);
+    io.emit("online_users", online_users);
+  });
+
+  socket.on("disconnect", function() {
+    if (socket.username) {
+      io.emit(
+        "is_online",
+        "🔴 <i><strong>" + socket.username + "</strong> left the chat...</i>"
+      );
+    }
+    // addToOffline(socket.username);
+    // io.emit("offline_users", offline_users);
+  });
+
+  socket.on("chat_message", function(msg) {
+    io.emit("chat_message", "<strong>" + socket.username + "</strong>:" + msg);
+  });
+
+  socket.on("is_typing", function(username) {
+    if (users_typing.indexOf(username) == -1) {
+      users_typing.push(username);
+    }
+    console.log("is_typing", users_typing);
+    send_users_typing();
+  });
+
+  socket.on("done_typing", function(username) {
+    var index = users_typing.indexOf(username);
+    if (index != -1) {
+      users_typing.splice(index, 1);
+    }
+    console.log("done_typing", users_typing);
+    send_users_typing();
+  });
+
+  function send_users_typing() {
+    socket.emit("users_typing", users_typing);
+    users_typing.red;
+  }
+});
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on("error", onError);
+server.on("listening", onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== "listen") {
+    throw error;
+  }
+
+  var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case "EACCES":
+      console.error(bind + " requires elevated privileges");
+      process.exit(1);
+      break;
+    case "EADDRINUSE":
+      console.error(bind + " is already in use");
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  debug("Listening on " + bind);
+}

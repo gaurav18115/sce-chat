@@ -1,0 +1,100 @@
+extends layout
+
+block content
+
+  style(type="text/css").
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font: 13px Helvetica, Arial; }
+    #messages { list-style-type: none; margin: 0; padding: 0; }
+    #messages li { padding: 5px 10px; }
+    #messages li:nth-child(odd) { background: #eee; }
+    #typing {position: fixed; bottom: 40px; display: inline-flex; list-style-type: none;}
+    #online_users {list-style-type: none;}
+
+  script(src="/javascripts/socket.io/dist/socket.io.js")
+  script(src="/javascripts/jquery/jquery-3.4.1.js")
+  script.
+    $(function(){
+      
+      var socket = io();
+      $("form").submit(function(e){
+        e.preventDefault(); // prevents page reloading
+        socket.emit('chat_message', $('#m').val());
+        $('#m').val('');
+        return false;
+      });
+
+      // New online user
+      socket.on('is_online', function(msg){
+        $('#messages').append($('<li>').html(msg));
+      });
+
+      // Online users
+      socket.on('online_users', function(users){
+        $('#online_users').html("");
+        users.forEach(function(val, i, arr){
+          $('#online_users').append($('<li class="list-group-item">').html('🟢 ' + val));
+        });
+      });
+
+      socket.on('chat_message', function(msg){
+        $('#messages').append($('<li>').html(msg));
+      });
+
+      socket.emit('username', "#{username}");
+
+      // user is typing
+      var typingTimer;
+      var doneTypingInterval = 5000;
+
+      $("#m").keyup(function(){
+        clearTimeout(typingTimer );
+        socket.emit("is_typing", username);
+        typingTimer = setTimeout(doneTyping, doneTypingInterval);
+      });
+
+      socket.on("users_typing", function(users){
+        
+        if (users.length == 0){
+          $("#typing").html("");
+          return;
+        }
+
+        var users_typing = users.filter((val) => val != username);
+
+        if (users_typing.length == 1) {
+          $("#typing").html($("<li>").html(users_typing[0] + " is typing..."));
+        } else if (users_typing.length > 1) {
+          $("#typing").html($("<li>").html(users_typing.join(",") + " are typing..."));
+        } else {
+          $("#typing").html("");
+        }
+      })
+
+      function doneTyping() {
+        socket.emit("done_typing", username);
+      };
+    });
+
+  body.container
+    
+    div.row
+      div.col-sm-3
+        h4 Members
+        ul.list-group.list-group-flush(id="online_users")
+        //- ul(id="offline_users")
+        
+      div.col-8
+        h4 Group Chat
+          span.float-right
+            a.btn-sm.btn-danger(href="/logout") Logout
+            
+        ul.list-group(id="messages")
+        ul(id="typing")
+
+        form.fixed-bottom
+            div.form-group.row.ml-5
+              
+              input.form-control.col-8.mr-1(id="m", autocomplete="off", autofocus="true")
+              button.btn.btn-primary.col-2 Send
+    
