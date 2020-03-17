@@ -31,6 +31,12 @@ socket.io
 uuid
 ```
 
+## Usage
+
+Go the `http://localhost:3000/ to access the chat application.
+
+By default, there are two users - test/pass and user/pass. You can add more users in `db/db.json` json file.
 
 ## License
+
 [MIT](https://choosealicense.com/licenses/mit/)
